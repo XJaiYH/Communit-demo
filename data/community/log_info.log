@@ -1,0 +1,5 @@
+2023-03-04 12:26:26,566 INFO [main] c.x.c.LoggerTest [StartupInfoLogger.java:51] Starting LoggerTest using Java 19 with PID 43052 (started by 18710 in F:\java_project\myTest\community)
+2023-03-04 12:26:26,568 INFO [main] c.x.c.LoggerTest [SpringApplication.java:630] No active profile set, falling back to 1 default profile: "default"
+2023-03-04 12:26:27,712 INFO [main] o.s.b.a.w.s.WelcomePageHandlerMapping [WelcomePageHandlerMapping.java:56] Adding welcome page template: index
+2023-03-04 12:26:27,886 INFO [main] c.x.c.LoggerTest [StartupInfoLogger.java:57] Started LoggerTest in 1.659 seconds (process running for 2.222)
+2023-03-04 12:26:28,207 INFO [main] c.x.c.LoggerTest [LoggerTest.java:24] info log
