@@ -12,8 +12,8 @@
 <body>
 	<div class="nk-container">
 		<!-- 头部 -->
-		<header class="bg-dark sticky-top" th:replace="index::header">
-			<div class="container">
+		<header class="bg-dark sticky-top" th:replace="index::header"><!--复用用index.html中名为header的代码段-->
+			<div class="container"><!--由于复用了header，所以这个个div里的东西不在生效，甚至这个div可以删除，而是用index::header里的-->
 				<!-- 导航 -->
 				<nav class="navbar navbar-expand-lg navbar-dark">
 					<!-- logo -->
@@ -31,7 +31,7 @@
 								<a class="nav-link position-relative" href="letter.html">消息<span class="badge badge-danger">12</span></a>
 							</li>
 							<li class="nav-item ml-3 btn-group-vertical">
-								<a class="nav-link" href="register.html">注册</a>
+								<a class="nav-link" th:href="@{/register}}">注册</a>
 							</li>
 							<li class="nav-item ml-3 btn-group-vertical">
 								<a class="nav-link" href="login.html">登录</a>
@@ -63,7 +63,7 @@
 		<div class="main">
 			<div class="container pl-5 pr-5 pt-3 pb-3 mt-3 mb-3">
 				<h3 class="text-center text-info border-bottom pb-3">注&nbsp;&nbsp;册</h3>
-				<form class="mt-5" method="post" th:action="@{/register}">
+				<form class="mt-5" method="post" th:action="@{/register}"><!--表单提交-->
 					<div class="form-group row">
 						<label for="username" class="col-sm-2 col-form-label text-right">账号:</label>
 						<div class="col-sm-10">
@@ -105,7 +105,7 @@
 							<input type="email"
 								   th:class="|form-control ${emailMsg!=null?'is-invalid':''}|"
 								   th:value="${user!=null?user.email:''}"
-								   id="email" name="email" placeholder="请输入您的邮箱!" required>
+								   id="email" name="email" placeholder="请输入您的邮箱!" required><!--有错的时候加上is-invalid样式，只有invalid，后面div里的东西才能显示-->
 							<div class="invalid-feedback" th:text="${emailMsg}">
 								该邮箱已注册!
 							</div>
