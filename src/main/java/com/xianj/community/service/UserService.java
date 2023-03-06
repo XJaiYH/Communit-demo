@@ -1,6 +1,8 @@
 package com.xianj.community.service;
 
+import com.xianj.community.dao.LoginTicketMapper;
 import com.xianj.community.dao.UserMapper;
+import com.xianj.community.entity.LoginTicket;
 import com.xianj.community.entity.User;
 import com.xianj.community.util.CommunityConstent;
 import com.xianj.community.util.CommunityUtil;
@@ -30,6 +32,8 @@ public class UserService implements CommunityConstent {
     private String domain;
     @Value("${server.servlet.context-path}")
     private String contextPath;
+    @Autowired
+    LoginTicketMapper loginTicketMapper;
     public User findUserById(int id){
         return userMapper.selectById(id);
     }
@@ -96,4 +100,49 @@ public class UserService implements CommunityConstent {
         }
     }
 
+    public Map<String, Object> login(String username, String password, int expiredSeconds){
+        Map<String, Object> map = new HashMap<>();
+        // 空值处理
+        if(StringUtils.isBlank(username)){
+            map.put("usernameMsg", "账号不能为空！");
+            return map;
+        }
+        if(StringUtils.isBlank(password)){
+            map.put("passwordMsg", "密码不能为空！");
+            return map;
+        }
+        // 验证账号
+        User user = userMapper.selectByName(username);
+        if(user == null){
+            map.put("usernameMsg", "账号不存在！");
+            return map;
+        }
+        // 验证激活状态
+        if(user.getStatus() == 0) {
+            map.put("usernameMsg", "账号未激活！");
+        }
+        // 验证密码
+        password = CommunityUtil.md5(password + user.getSalt());
+        if(!password.equals(user.getPassword())){
+            map.put("passwordMsg", "密码错误！");
+            return map;
+        }
+        // 生成登录凭证
+        LoginTicket loginTicket = new LoginTicket();
+        loginTicket.setTicket(CommunityUtil.generateUUID());
+        loginTicket.setStatus(0);// 0为有效态
+        loginTicket.setExpired(new Date(System.currentTimeMillis() + expiredSeconds * 1000));
+        loginTicket.setUserId(user.getId());
+        loginTicketMapper.insertLoginTicket(loginTicket);
+
+        // 浏览器只需要保留ticket，这样下次访问时，浏览器将ticket传给服务端，服务端检查ticket是否存在，是否过期，若存在且未过期，则保持登录状态，否则重新登录
+        // 所以要将ticket返回给客户端，由于此处返回map，所以将ticket放入map中即可
+        map.put("ticket", loginTicket.getTicket());
+        return map;
+    }
+
+    // 退出
+    public void logout(String ticket){
+        loginTicketMapper.updateStatus(ticket, 1);
+    }
 }

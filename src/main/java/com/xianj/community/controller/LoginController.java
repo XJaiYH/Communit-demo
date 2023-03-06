@@ -4,13 +4,17 @@ import com.google.code.kaptcha.Producer;
 import com.xianj.community.entity.User;
 import com.xianj.community.service.UserService;
 import com.xianj.community.util.CommunityConstent;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.apache.commons.lang3.StringUtils;
 import org.mybatis.logging.Logger;
 import org.mybatis.logging.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -28,13 +32,14 @@ public class LoginController implements CommunityConstent {
     private UserService userService;
     @Autowired
     private Producer kaptchaProduce;
-
+    @Value("server.servlet.context-path")
+    private String contextPath;
     @RequestMapping(path="/register", method = RequestMethod.GET)
     public String getRegisterPage(){
         return "/site/register";
     }
 
-    @RequestMapping(path="/login", method = RequestMethod.GET)
+    @RequestMapping(path="/login", method = RequestMethod.GET)// 此处两个方法的路径名相同没问题，但是method不能相同，否则冲突了
     // 此处返回的是页面，浏览器所需要的资源以路径的形式封装在页面里面，若浏览器需要这些资源，还需要再次访问服务器申请，所以需要在写一个方法返回资源
     public String getLoginPage(){
         return "/site/login";
@@ -91,5 +96,41 @@ public class LoginController implements CommunityConstent {
             model.addAttribute("target", "/index");// 跳转的页面
         }
         return "/site/operate-result";
+    }
+
+    @RequestMapping(path = "/login", method = RequestMethod.POST)
+    public String login(Model model, User user, String code, boolean rememberMe, HttpSession session, HttpServletResponse response){
+        // 生成的验证码之前放到了session中，所以此处需要从session中读取，以判断用户输入的验证码是否正确
+        // 登录成功要向用户返回ticket，所以还需要response来返回一个cookie，cookie中存ticket
+
+        // 判断验证码和用户输入的验证码是否相同
+        // 验证码和用户输入的code都不应为空
+        String kaptcha = (String) session.getAttribute("kaptcha");
+        if(StringUtils.isBlank(kaptcha) || StringUtils.isBlank(code) || !kaptcha.equalsIgnoreCase(code)){// equalsIgnoreCase在比较时忽略大小写
+            model.addAttribute("codeMsg", "验证码不正确！");
+            return "/site/login";
+        }
+
+        // 检查账户、密码是否有问题
+        int expiredTime = rememberMe?REMEMBER_EXPIRED_SECONDS:DEFAULT_EXPIRED_SECONDS;
+        Map<String, Object> map = userService.login(user.getUsername(), user.getPassword(), expiredTime);
+        if(map.containsKey("ticket")){
+            Cookie cookie = new Cookie("ticket", map.get("ticket").toString());// 初始化ticket的cookie
+            cookie.setPath(contextPath);// 设置生效路径，即项目路径
+            cookie.setMaxAge(expiredTime);// 设置有效时间
+            response.addCookie(cookie);// 返回cookie
+            return "redirect:/index";
+        }else{
+            model.addAttribute("usernameMsg", map.get("usernameMsg"));
+            model.addAttribute("passwordMsg", map.get("passwordMsg"));
+            return "/site/login";
+        }
+    }
+
+    // logout
+    @RequestMapping(path = "/logout", method = RequestMethod.GET)
+    public String logout(Model model, @CookieValue("ticket") String ticket){
+        userService.logout(ticket);
+        return "redirect:/login";
     }
 }

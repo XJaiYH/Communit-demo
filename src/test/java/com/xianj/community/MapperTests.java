@@ -1,8 +1,10 @@
 package com.xianj.community;
 
 import com.xianj.community.dao.DiscussPostMapper;
+import com.xianj.community.dao.LoginTicketMapper;
 import com.xianj.community.dao.UserMapper;
 import com.xianj.community.entity.DiscussPost;
+import com.xianj.community.entity.LoginTicket;
 import com.xianj.community.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.junit.Test;
@@ -25,6 +27,26 @@ public class MapperTests {
     @Autowired
     private DiscussPostMapper discussPostMapper;
 
+    @Autowired
+    private LoginTicketMapper loginTicketMapper;
+    @Test
+    public  void testInsertLoginTicket(){
+        LoginTicket loginTicket1 = new LoginTicket();
+        loginTicket1.setUserId(101);
+        loginTicket1.setTicket("000");
+        loginTicket1.setStatus(1);
+        loginTicket1.setExpired(new Date(System.currentTimeMillis() + 1000 * 60 * 10));
+        loginTicketMapper.insertLoginTicket(loginTicket1);
+    }
+    @Test
+    public void testSelectAndUpdateLoginicket(){
+        LoginTicket loginTicket = loginTicketMapper.selectByTicket("000");
+        System.out.println(loginTicket);
+
+        loginTicketMapper.updateStatus("000", 0);
+        loginTicket = loginTicketMapper.selectByTicket("000");
+        System.out.println(loginTicket);
+    }
     @Test
     public void testSelectDiscussPost(){
         List<DiscussPost> list = discussPostMapper.selectDiscussPosts(101,0,10);
