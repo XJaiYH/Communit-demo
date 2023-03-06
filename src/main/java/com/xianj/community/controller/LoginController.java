@@ -62,7 +62,7 @@ public class LoginController implements CommunityConstent {
             ImageIO.write(image, "png", os);// response由spring MVC维护，所以我们无需关闭
             // 此处意思是 输出image图片，其格式为png，输出流为os
         } catch (IOException e) {
-           logger.error(()->"响应验证码失败"+e.getMessage());
+           logger.error(()->"响应验证码失败" + e.getMessage());
         }
     }
 

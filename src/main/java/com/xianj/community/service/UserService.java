@@ -6,8 +6,10 @@ import com.xianj.community.entity.LoginTicket;
 import com.xianj.community.entity.User;
 import com.xianj.community.util.CommunityConstent;
 import com.xianj.community.util.CommunityUtil;
+import com.xianj.community.util.HostHolder;
 import com.xianj.community.util.MailClient;
 import jakarta.mail.internet.MimeMessage;
+import org.apache.commons.lang3.CharSet;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +36,8 @@ public class UserService implements CommunityConstent {
     private String contextPath;
     @Autowired
     LoginTicketMapper loginTicketMapper;
+    @Autowired
+    private HostHolder hostHolder;
     public User findUserById(int id){
         return userMapper.selectById(id);
     }
@@ -44,26 +48,34 @@ public class UserService implements CommunityConstent {
             throw new IllegalArgumentException("参数不能为空！");
         }
         if(StringUtils.isBlank(user.getUsername())) {
-            map.put("usernameMsg", "账号不能为空");
+            map.put("usernameMsg", "账号不能为空！");
             return map;
         }
         if(StringUtils.isBlank(user.getPassword())){
-            map.put("passwordMsg", "密码不能为空");
+            map.put("passwordMsg", "密码不能为空！");
+            return map;
+        }
+        if(user.getPassword().length() < 8){
+            map.put("passwordMsg", "密码长度不能小于8位！");
+            return map;
+        }
+        if(user.getPassword().contains(" ")){
+            map.put("passwordMsg", "密码不能包含空格！");
             return map;
         }
         if(StringUtils.isBlank(user.getEmail())){
-            map.put("emailMsg", "邮箱不能为空");
+            map.put("emailMsg", "邮箱不能为空！");
             return map;
         }
 
         User u = userMapper.selectByName(user.getUsername());
         if(u != null){
-            map.put("usernameMsg", "该账户名已存在");
+            map.put("usernameMsg", "该账户名已存在！");
             return map;
         }
         u = userMapper.selectByEmail(user.getEmail());
         if(u != null){
-            map.put("emailMsg", "该邮箱已被注册");
+            map.put("emailMsg", "该邮箱已被注册！");
             return map;
         }
 
@@ -144,5 +156,66 @@ public class UserService implements CommunityConstent {
     // 退出
     public void logout(String ticket){
         loginTicketMapper.updateStatus(ticket, 1);
+    }
+
+    // 查询凭证
+    public LoginTicket findLoginTicket(String ticket){
+        return loginTicketMapper.selectByTicket(ticket);
+    }
+    // 更新用户头像文件的路径
+    public int updateHeader(int userId, String headerUrl){
+        return userMapper.updateHeader(userId, headerUrl);
+    }
+
+    // 更新用户密码
+    public Map<String, Object> updatePassword(String oldPassword, String newPassword, String checkNewPassword){
+        Map<String, Object> map = new HashMap<>();
+        if(StringUtils.isBlank(oldPassword)){
+            map.put("passwordOldMsg", "密码不能为空！");
+            return map;
+        }
+        if(StringUtils.isBlank(newPassword)){
+            map.put("passwordNewMsg", "密码不能为空！");
+            return map;
+        }
+        if(StringUtils.isBlank(checkNewPassword)){
+            map.put("passwordCheckMsg", "密码不能为空！");
+            return map;
+        }
+        if(!newPassword.equals(checkNewPassword)){
+            map.put("passwordNewMsg", "两次输入的密码不相同，请重新输入！");
+            map.put("passwordCheckMsg", "两次输入的密码不相同，请重新输入！");
+            return map;
+        }
+        if(newPassword.length() < 8){
+            map.put("passwordNewMsg", "密码长度不能小于8位！");
+            return map;
+        }
+        if(oldPassword.length() < 8){
+            map.put("passwordOldMsg", "密码长度不能小于8位！");
+            return map;
+        }
+        if(checkNewPassword.length() < 8){
+            map.put("passwordCheckMsg", "密码长度不能小于8位！");
+            return map;
+        }
+        if(newPassword.contains(" ")){
+            map.put("passwordNewMsg", "密码不能包含空格！");
+            return map;
+        }
+        if(checkNewPassword.contains(" ")){
+            map.put("passwordCheckMsg", "密码不能包含空格！");
+            return map;
+        }
+
+        User user = hostHolder.getUser();
+        oldPassword = CommunityUtil.md5(oldPassword + user.getSalt());
+        if(!oldPassword.equals(user.getPassword())){
+            map.put("passwordOldMsg", "输入的旧密码错误，请重新输入！");
+            return map;
+        }
+        newPassword = CommunityUtil.md5(newPassword + user.getSalt());
+        userMapper.updatePassword(user.getId(), newPassword);
+        return map;
     }
 }
