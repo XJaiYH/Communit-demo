@@ -1,5 +1,6 @@
 package com.xianj.community.controller;
 
+import com.xianj.community.annotation.LoginRequired;
 import com.xianj.community.entity.User;
 import com.xianj.community.service.UserService;
 import com.xianj.community.util.CommunityUtil;
@@ -46,12 +47,14 @@ public class UserController {
     @Autowired
     private HostHolder hostHolder;
 
+    @LoginRequired
     @RequestMapping(path = "/setting", method = RequestMethod.GET)
     public String getSettingPage() {
         return "/site/setting";
     }
 
     // 更新头像以及路径
+    @LoginRequired
     @RequestMapping(path = "/upload", method = RequestMethod.POST)
     public String uploadHeader(MultipartFile headerImage, Model model) {// 如果传入的只有一个文件，声明一个。如果是多个文件， 则声明一个数组
         if (headerImage == null) {
@@ -106,6 +109,7 @@ public class UserController {
         }
     }
 
+    @LoginRequired
     @RequestMapping(path = "/uploadPsd", method = RequestMethod.POST)
     public String uploadPassword(Model model, String oldPassword, String newPassword, String checkNewPassword){
         Map<String, Object> map = userService.updatePassword(oldPassword, newPassword, checkNewPassword);

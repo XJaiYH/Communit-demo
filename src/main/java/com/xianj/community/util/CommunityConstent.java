@@ -13,4 +13,10 @@ public interface CommunityConstent {
     // 记住状态的登录凭证的超时时间
     int REMEMBER_EXPIRED_SECONDS = 3600 * 12 * 100;
 
+    // 实体类型为帖子
+    int ENTITY_TYPE_POST = 1;
+
+    // 实体类型为评论
+    int ENTITY_TYPE_COMMENT = 2;
+
 }
