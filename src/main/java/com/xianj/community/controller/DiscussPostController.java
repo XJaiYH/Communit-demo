@@ -1,11 +1,13 @@
 package com.xianj.community.controller;
 
+import com.xianj.community.annotation.LoginRequired;
 import com.xianj.community.entity.Comment;
 import com.xianj.community.entity.DiscussPost;
 import com.xianj.community.entity.Page;
 import com.xianj.community.entity.User;
 import com.xianj.community.service.CommentService;
 import com.xianj.community.service.DiscussPostService;
+import com.xianj.community.service.LikeService;
 import com.xianj.community.service.UserService;
 import com.xianj.community.util.CommunityConstent;
 import com.xianj.community.util.CommunityUtil;
@@ -32,8 +34,12 @@ public class DiscussPostController implements CommunityConstent {
     @Autowired
     private CommentService commentService;
 
+    @Autowired
+    private LikeService likeService;
+
     @RequestMapping(path = "/add", method = RequestMethod.POST)
     @ResponseBody
+    @LoginRequired
     public String addDiscussPost(String title, String content){
         User user = hostHolder.getUser();
         if(user == null){
@@ -55,6 +61,11 @@ public class DiscussPostController implements CommunityConstent {
         model.addAttribute("post", post);
         User user = userService.findUserById(post.getUserId());
         model.addAttribute("user", user);
+        long likeCount = likeService.findEntityLikeCount(ENTITY_TYPE_POST, post.getId());
+        int likeStatus = hostHolder.getUser() == null? 0 :
+                likeService.findLikeStatus(ENTITY_TYPE_POST, post.getId(), hostHolder.getUser().getId());
+        model.addAttribute("likeCount", likeCount);
+        model.addAttribute("likeStatus", likeStatus);
 
         page.setPath("/discuss/detail/" + discussPostId);
         page.setLimit(5);
@@ -87,17 +98,31 @@ public class DiscussPostController implements CommunityConstent {
                         // 回复目标
                         User targetUser = replay.getTargetId() == 0 ? null : userService.findUserById(replay.getTargetId());
                         replayVo.put("target", targetUser);
+                        likeCount = likeService.findEntityLikeCount(ENTITY_TYPE_COMMENT, replay.getId());
+                        likeStatus = hostHolder.getUser() == null? 0 :
+                                likeService.findLikeStatus(ENTITY_TYPE_COMMENT, post.getId(), hostHolder.getUser().getId());
+                        replayVo.put("likeCount", likeCount);
+                        replayVo.put("likeStatus", likeStatus);
                         replayVoList.add(replayVo);
                     }
                 }
                 commentVo.put("replays", replayVoList);
                 // 回复数量
                 commentVo.put("replayCount", commentService.findCommentRows(ENTITY_TYPE_COMMENT, comment.getId()));
+                likeCount = likeService.findEntityLikeCount(ENTITY_TYPE_COMMENT, comment.getId());
+                likeStatus = hostHolder.getUser() == null? 0 :
+                        likeService.findLikeStatus(ENTITY_TYPE_COMMENT, post.getId(), hostHolder.getUser().getId());
+                commentVo.put("likeCount", likeCount);
+                commentVo.put("likeStatus", likeStatus);
                 // 封装每一个评论的commentVo
                 commentVOList.add(commentVo);
             }
         }
+
         model.addAttribute("commentVOList", commentVOList);
+
         return "/site/discuss-detail";
     }
+
+
 }

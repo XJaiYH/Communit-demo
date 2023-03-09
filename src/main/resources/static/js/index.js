@@ -14,7 +14,7 @@ function publish() {
 	    function(data){
 	        data = $.parseJSON(data);
 	        // 在提示框显示消息
-	        $("#hintModel").text(data.msg);
+	        $("#hintBody").text(data.msg);
             // 显示提示框，2秒后关闭
             $("#hintModal").modal("show");
             setTimeout(function(){

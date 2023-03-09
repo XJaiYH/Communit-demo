@@ -19,4 +19,7 @@ public interface CommunityConstent {
     // 实体类型为评论
     int ENTITY_TYPE_COMMENT = 2;
 
+    // 用户类型为3
+    int ENTITY_TYPE_USER = 3;
+
 }

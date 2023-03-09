@@ -2,7 +2,10 @@ package com.xianj.community.controller;
 
 import com.xianj.community.annotation.LoginRequired;
 import com.xianj.community.entity.User;
+import com.xianj.community.service.FollowService;
+import com.xianj.community.service.LikeService;
 import com.xianj.community.service.UserService;
+import com.xianj.community.util.CommunityConstent;
 import com.xianj.community.util.CommunityUtil;
 import com.xianj.community.util.HostHolder;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,11 +33,11 @@ import java.util.Map;
 
 @Controller
 @RequestMapping("/user")
-public class UserController {
+public class UserController implements CommunityConstent {
     @Autowired
     private UserService userService;
 
-    private Logger logger = LoggerFactory.getLogger(UserController.class);
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @Value("${community.path.domain}")
     private String domain;
@@ -47,6 +50,11 @@ public class UserController {
     @Autowired
     private HostHolder hostHolder;
 
+    @Autowired
+    private LikeService likeService;
+
+    @Autowired
+    private FollowService followService;
     @LoginRequired
     @RequestMapping(path = "/setting", method = RequestMethod.GET)
     public String getSettingPage() {
@@ -124,4 +132,28 @@ public class UserController {
         }
     }
 
+    @RequestMapping(path = "/profile/{userId}", method = RequestMethod.GET)
+    public String getProfile(@PathVariable("userId") int userId, Model model){
+        User user = userService.findUserById(userId);
+        if(user == null){
+            throw new RuntimeException("该用户不存在");
+        }
+        // 用户
+        model.addAttribute("user", user);
+        // 点赞数
+        model.addAttribute("likeCount", likeService.getUserLikeCount(userId));
+        // userId的关注数量
+        long followeeCount = followService.findFolloweeCount(userId, ENTITY_TYPE_USER);
+        model.addAttribute("followeeCount", followeeCount);
+        // userId的粉丝数量
+        long followerCount = followService.findFollowerCount(userId, ENTITY_TYPE_USER);
+        model.addAttribute("followerCount", followerCount);
+        // 当前用户是否对userId已关注？
+        boolean hasFollowed = false;
+        if(hostHolder.getUser() != null){
+            hasFollowed = followService.hasFollowed(hostHolder.getUser().getId(), ENTITY_TYPE_USER, userId);
+        }
+        model.addAttribute("followStatus", hasFollowed);
+        return "/site/profile";
+    }
 }

@@ -4,8 +4,12 @@ import com.xianj.community.entity.DiscussPost;
 import com.xianj.community.entity.Page;
 import com.xianj.community.entity.User;
 import com.xianj.community.service.DiscussPostService;
+import com.xianj.community.service.LikeService;
 import com.xianj.community.service.UserService;
+import com.xianj.community.util.CommunityConstent;
+import com.xianj.community.util.HostHolder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,13 +22,22 @@ import java.util.List;
 import java.util.Map;
 
 @Controller
-public class HomeController {
+public class HomeController implements CommunityConstent {
 
     @Autowired
     private DiscussPostService discussPostService;
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private LikeService likeService;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
+
+    @Autowired
+    private HostHolder hostHolder;
 
     @RequestMapping(path="/index", method = RequestMethod.GET)
     public String getIndexPage(Model model, Page page){
@@ -42,11 +55,21 @@ public class HomeController {
                 map.put("post", post);
                 User user = userService.findUserById(post.getUserId());
                 map.put("user", user);
+                long likeCount = likeService.findEntityLikeCount(ENTITY_TYPE_POST, post.getId());
+                int likeStatus = hostHolder.getUser() == null? 0 :
+                        likeService.findLikeStatus(ENTITY_TYPE_POST, post.getId(), hostHolder.getUser().getId());
+                map.put("likeCount", likeCount);
+                map.put("likeStatus", likeStatus);
                 discussPosts.add(map);
             }
         }
         model.addAttribute("discussPosts", discussPosts);
         return "/index";
+    }
+
+    @RequestMapping(path = "/error", method = RequestMethod.GET)
+    public String getError(){
+        return "/error/500.html";
     }
 
 }

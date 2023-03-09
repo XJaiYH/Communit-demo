@@ -16,7 +16,6 @@ import java.awt.*;
 public class CommunityApplication {
 
 	public static void main(String[] args) {
-		//JOptionPane.showMessageDialog(null, "quit?"); //显示对话框，参数1为null表示在屏幕中间，参数2为提示信息
 		SpringApplication.run(CommunityApplication.class, args);
 	}
 

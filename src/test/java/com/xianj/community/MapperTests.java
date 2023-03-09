@@ -2,9 +2,11 @@ package com.xianj.community;
 
 import com.xianj.community.dao.DiscussPostMapper;
 import com.xianj.community.dao.LoginTicketMapper;
+import com.xianj.community.dao.MessageMapper;
 import com.xianj.community.dao.UserMapper;
 import com.xianj.community.entity.DiscussPost;
 import com.xianj.community.entity.LoginTicket;
+import com.xianj.community.entity.Message;
 import com.xianj.community.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.junit.Test;
@@ -29,6 +31,9 @@ public class MapperTests {
 
     @Autowired
     private LoginTicketMapper loginTicketMapper;
+
+    @Autowired
+    private MessageMapper messageMapper;
     @Test
     public  void testInsertLoginTicket(){
         LoginTicket loginTicket1 = new LoginTicket();
@@ -100,5 +105,27 @@ public class MapperTests {
 
         User user = userMapper.selectById(150);
         System.out.println(user);
+    }
+
+    @Test
+    public void testMessage(){
+        List<Message> messages = messageMapper.selectConversations(111, 0, 10);
+        for(Message message : messages){
+            System.out.println(message.toString());
+        }
+        int count = messageMapper.selectConversationCount(111);
+        System.out.println(count);
+
+        messages = messageMapper.selectMessagesForSingleConv("111_112", 0, 10);
+        for(Message message : messages){
+            System.out.println(message.toString());
+        }
+        count = messageMapper.selectMessageCountForSingleConv("111_112");
+        System.out.println(count);
+        count = messageMapper.selectMessageUnreadCount(111, "111_131");
+        System.out.println(count);
+        count = messageMapper.selectMessageUnreadCount(131, null);
+        System.out.println(count);
+
     }
 }
