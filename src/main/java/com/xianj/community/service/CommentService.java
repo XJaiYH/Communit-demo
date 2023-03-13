@@ -45,4 +45,8 @@ public class CommentService implements CommunityConstent {
         }
         return rows;
     }
+
+    public Comment findCommentById(int commentId){
+        return commentMapper.selectCommentById(commentId);
+    }
 }

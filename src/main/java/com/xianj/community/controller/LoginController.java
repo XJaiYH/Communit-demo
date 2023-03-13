@@ -4,14 +4,19 @@ import com.google.code.kaptcha.Producer;
 import com.xianj.community.entity.User;
 import com.xianj.community.service.UserService;
 import com.xianj.community.util.CommunityConstent;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+import com.xianj.community.util.CommunityUtil;
+import com.xianj.community.util.RedisKeyUtil;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
 import org.mybatis.logging.Logger;
 import org.mybatis.logging.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -24,6 +29,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Controller
 public class LoginController implements CommunityConstent {
@@ -34,6 +40,8 @@ public class LoginController implements CommunityConstent {
     private Producer kaptchaProduce;
     @Value("server.servlet.context-path")
     private String contextPath;
+    @Autowired
+    private RedisTemplate redisTemplate;
     @RequestMapping(path="/register", method = RequestMethod.GET)
     public String getRegisterPage(){
         return "/site/register";
@@ -47,13 +55,23 @@ public class LoginController implements CommunityConstent {
 
     // 返回资源，此处返回验证码图片
     @RequestMapping(path = "/kaptcha", method = RequestMethod.GET)
-    public void getKaptch(HttpServletResponse response, HttpSession session){// 对于敏感数据，应放在cookie或者session里面，而不能直接返回在html
+    public void getKaptch(HttpServletResponse response){// 对于敏感数据，应放在cookie或者session里面，而不能直接返回在html
         // 生成验证码
         String text = kaptchaProduce.createText();
-        BufferedImage image = kaptchaProduce.createImage(text);
+         BufferedImage image = kaptchaProduce.createImage(text);
 
         // 将验证码存入session
-        session.setAttribute("kaptcha", text);
+        // session.setAttribute("kaptcha", text);
+
+        // 将验证码存入redis，既保证效率又可以设置有效时间
+        // 存验证码需要key，key应该标识验证码的归属着，即这个验证码对应于某个待登录用户，但是登录时，无法知道登录用户的任何信息，所以可以生成一个临时的随机字符串存入cookie，以标识用户
+        String kaptchaOnwer = CommunityUtil.generateUUID();
+        Cookie cookie = new Cookie("kaptchaOnwer", kaptchaOnwer);
+        cookie.setPath(contextPath);
+        cookie.setMaxAge(60);
+        response.addCookie(cookie);
+        String kaptchaKey = RedisKeyUtil.getKaptchaKey(kaptchaOnwer);
+        redisTemplate.opsForValue().set(kaptchaKey, text, 60, TimeUnit.SECONDS);
 
         // 将图片输出给浏览器
         response.setContentType("image/png");// 声明返回类型
@@ -99,18 +117,47 @@ public class LoginController implements CommunityConstent {
     }
 
     @RequestMapping(path = "/login", method = RequestMethod.POST)
-    public String login(Model model, User user, String code, boolean rememberMe, HttpSession session, HttpServletResponse response){
+    public String login(Model model, User user, String code, boolean rememberMe, HttpSession session,
+                        HttpServletResponse response, HttpServletRequest request){
         // 生成的验证码之前放到了session中，所以此处需要从session中读取，以判断用户输入的验证码是否正确
         // 登录成功要向用户返回ticket，所以还需要response来返回一个cookie，cookie中存ticket
 
         // 判断验证码和用户输入的验证码是否相同
         // 验证码和用户输入的code都不应为空
-        String kaptcha = (String) session.getAttribute("kaptcha");
+        // String kaptcha = (String) session.getAttribute("kaptcha");
+
+        // 现在从Redis中提取验证码
+        // 不要这样从浏览器传过来的cookie中取值，因为我们之前设置了cookie的生成时间，过期了就会被删掉，这样取值会抛出异常
+        // @CookieValue("kaptchaOnwer") String kaptchaOnwer
+        String kaptcha = null;
+        String kaptchaOnwer = null;
+        Cookie[] cookies = request.getCookies();
+        if(cookies == null){
+            return "redirect:/kaptcha";
+        }
+        boolean flag = false;
+        for(Cookie cookie : cookies){
+            if(cookie.getName().equals("kaptchaOnwer")){
+                kaptchaOnwer = cookie.getValue();
+                flag = true;
+            }
+        }
+        if(!flag){
+            model.addAttribute("codeMsg", "验证码过期，请重新获取！");
+            return "/site/login";
+        }
+        if(StringUtils.isNotBlank(kaptchaOnwer)) {
+            String kaptchaKey = RedisKeyUtil.getKaptchaKey(kaptchaOnwer);
+            kaptcha = (String) redisTemplate.opsForValue().get(kaptchaKey);
+        }else{
+            model.addAttribute("codeMsg", "验证码过期，请重新获取！");
+            return "/site/login";
+        }
+
         if(StringUtils.isBlank(kaptcha) || StringUtils.isBlank(code) || !kaptcha.equalsIgnoreCase(code)){// equalsIgnoreCase在比较时忽略大小写
             model.addAttribute("codeMsg", "验证码不正确！");
             return "/site/login";
         }
-
         // 检查账户、密码是否有问题
         int expiredTime = rememberMe?REMEMBER_EXPIRED_SECONDS:DEFAULT_EXPIRED_SECONDS;
         Map<String, Object> map = userService.login(user.getUsername(), user.getPassword(), expiredTime);
@@ -129,8 +176,10 @@ public class LoginController implements CommunityConstent {
 
     // logout
     @RequestMapping(path = "/logout", method = RequestMethod.GET)
-    public String logout(Model model, @CookieValue("ticket") String ticket){
+    public String logout(@CookieValue("ticket") String ticket){
         userService.logout(ticket);
+        // 退出时清理SecurityContext
+        SecurityContextHolder.clearContext();
         return "redirect:/login";
     }
 }

@@ -5,9 +5,11 @@ import com.xianj.community.entity.Page;
 import com.xianj.community.entity.User;
 import com.xianj.community.service.DiscussPostService;
 import com.xianj.community.service.LikeService;
+import com.xianj.community.service.MessageService;
 import com.xianj.community.service.UserService;
 import com.xianj.community.util.CommunityConstent;
 import com.xianj.community.util.HostHolder;
+import com.xianj.community.util.RedisKeyUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
@@ -39,13 +41,14 @@ public class HomeController implements CommunityConstent {
     @Autowired
     private HostHolder hostHolder;
 
+    @Autowired
+    private MessageService messageService;
     @RequestMapping(path="/index", method = RequestMethod.GET)
     public String getIndexPage(Model model, Page page){
         // DispatchServlet会自动初始化page对象，并将网页传入的参数set进page，然后将page注入model中，model也是DispatchServlet自动初始化的
         // 所以在thymeleaf中可以直接访问page对象
         page.setRows(discussPostService.findDiscussPostRows(0));
         page.setPath("/index");
-
 
         List<DiscussPost> list = discussPostService.findDiscussPosts(0, page.getOffset(), page.getLimit());// 此时对象中的userid并非用户名，应查user进行组装
         List<Map<String, Object>> discussPosts = new ArrayList<>();
@@ -72,4 +75,8 @@ public class HomeController implements CommunityConstent {
         return "/error/500.html";
     }
 
+    @RequestMapping(path = "/denied", method = RequestMethod.GET)
+    public String getDeniedError(){
+        return "/error/404";
+    }
 }

@@ -1,10 +1,8 @@
 package com.xianj.community.controller;
 
 import com.xianj.community.annotation.LoginRequired;
-import com.xianj.community.entity.Comment;
-import com.xianj.community.entity.DiscussPost;
-import com.xianj.community.entity.Page;
-import com.xianj.community.entity.User;
+import com.xianj.community.entity.*;
+import com.xianj.community.event.EventProducer;
 import com.xianj.community.service.CommentService;
 import com.xianj.community.service.DiscussPostService;
 import com.xianj.community.service.LikeService;
@@ -37,6 +35,9 @@ public class DiscussPostController implements CommunityConstent {
     @Autowired
     private LikeService likeService;
 
+    @Autowired
+    private EventProducer eventProducer;
+
     @RequestMapping(path = "/add", method = RequestMethod.POST)
     @ResponseBody
     @LoginRequired
@@ -52,6 +53,13 @@ public class DiscussPostController implements CommunityConstent {
         discussPost.setCreateTime(new Date());
         discussPostService.addDiscussPost(discussPost);
         // 如果报错，将来统一处理
+        // 触发发帖事件
+        Event event = new Event()
+                .setTopic(TOPIC_PUBLISH)
+                .setUserId(hostHolder.getUser().getId())
+                .setEntityId(discussPost.getId())
+                .setEntityType(ENTITY_TYPE_POST);
+        eventProducer.fireEvent(event);
         return CommunityUtil.getJSONString(0, "发布成功");
     }
 
@@ -124,5 +132,45 @@ public class DiscussPostController implements CommunityConstent {
         return "/site/discuss-detail";
     }
 
+    // 置顶
+    @RequestMapping(path = "/top", method = RequestMethod.POST)
+    @ResponseBody
+    public String setTop(int postId){
+        discussPostService.updateType(postId, POST_TOP);
+        Event event = new Event()
+                .setTopic(TOPIC_PUBLISH)
+                .setUserId(hostHolder.getUser().getId())
+                .setEntityId(postId)
+                .setEntityType(ENTITY_TYPE_POST);
+        eventProducer.fireEvent(event);
+        return CommunityUtil.getJSONString(0);
+    }
+    // 加精
+    @RequestMapping(path = "/wonderful", method = RequestMethod.POST)
+    @ResponseBody
+    public String setWonderful(int postId){
+        discussPostService.updateStatus(postId, POST_WONDERFUL);
+        Event event = new Event()
+                .setTopic(TOPIC_PUBLISH)
+                .setUserId(hostHolder.getUser().getId())
+                .setEntityId(postId)
+                .setEntityType(ENTITY_TYPE_POST);
+        eventProducer.fireEvent(event);
+        return CommunityUtil.getJSONString(0);
+    }
 
+    // 删除
+    @RequestMapping(path = "/delete", method = RequestMethod.POST)
+    @ResponseBody
+    public String deletePost(int postId){
+        discussPostService.updateStatus(postId, POST_DELETE);
+        // 触发删除帖子的事件
+        Event event = new Event()
+                .setTopic(TOPIC_DELETE)
+                .setUserId(hostHolder.getUser().getId())
+                .setEntityId(postId)
+                .setEntityType(ENTITY_TYPE_POST);
+        eventProducer.fireEvent(event);
+        return CommunityUtil.getJSONString(0);
+    }
 }

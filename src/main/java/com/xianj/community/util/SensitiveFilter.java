@@ -1,11 +1,10 @@
 package com.xianj.community.util;
 
-import jakarta.annotation.PostConstruct;
+import javax.annotation.PostConstruct;
 import org.apache.commons.lang3.CharUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.mybatis.logging.Logger;
 import org.mybatis.logging.LoggerFactory;
-import org.slf4j.LoggerFactoryFriend;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;

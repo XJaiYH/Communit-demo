@@ -2,8 +2,8 @@ package com.xianj.community.controller.interceptor;
 
 import com.xianj.community.annotation.LoginRequired;
 import com.xianj.community.util.HostHolder;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.catalina.Host;
 import org.apache.ibatis.plugin.Interceptor;
 import org.springframework.beans.factory.annotation.Autowired;

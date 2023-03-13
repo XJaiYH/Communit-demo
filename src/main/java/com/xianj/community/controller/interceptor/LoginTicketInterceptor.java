@@ -5,13 +5,18 @@ import com.xianj.community.entity.User;
 import com.xianj.community.service.UserService;
 import com.xianj.community.util.CookieUtil;
 import com.xianj.community.util.HostHolder;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Date;
 
 @Component
@@ -36,6 +41,10 @@ public class LoginTicketInterceptor implements HandlerInterceptor {
                 User user = userService.findUserById(loginTicket.getUserId());
                 // 在本次请求中持有用户，很显然不能简单地存入容器中，因为程序是多线程进行的，这会导致存入的数据可能被别的线程所修改，所以需要对每个线程的私有数据进行隔离保存（每次请求都如此，请求结束应清除）
                 hostHolder.setUser(user);
+                // 构建用户认证的结果，并存入SecurityContext，以便于Security进行授权
+                Authentication authentication = new UsernamePasswordAuthenticationToken(user, user.getPassword(), userService.getAuthorities(user.getId()));// 用户密码认证方式
+                // 存入SecurityContext，SecurityContext通过SecurityContextHolder访问
+                SecurityContextHolder.setContext(new SecurityContextImpl(authentication));
             }
         }
         return true;
@@ -54,5 +63,7 @@ public class LoginTicketInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
         hostHolder.clear();
+        // 清理权限
+        SecurityContextHolder.clearContext();
     }
 }

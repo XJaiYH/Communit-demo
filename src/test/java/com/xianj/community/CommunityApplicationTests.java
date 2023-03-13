@@ -3,7 +3,7 @@ package com.xianj.community;
 import com.xianj.community.config.AlphaConfig;
 import com.xianj.community.dao.AlphaDao;
 import com.xianj.community.service.AlphaService;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;

@@ -2,8 +2,8 @@ package com.xianj.community.service;
 
 import com.xianj.community.dao.AlphaDao;
 import com.xianj.community.entity.listener;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;

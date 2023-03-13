@@ -1,26 +1,23 @@
 package com.xianj.community.service;
 
+import com.mysql.cj.log.Log;
 import com.xianj.community.dao.LoginTicketMapper;
 import com.xianj.community.dao.UserMapper;
 import com.xianj.community.entity.LoginTicket;
 import com.xianj.community.entity.User;
-import com.xianj.community.util.CommunityConstent;
-import com.xianj.community.util.CommunityUtil;
-import com.xianj.community.util.HostHolder;
-import com.xianj.community.util.MailClient;
-import jakarta.mail.internet.MimeMessage;
+import com.xianj.community.util.*;
 import org.apache.commons.lang3.CharSet;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserService implements CommunityConstent {
@@ -38,8 +35,16 @@ public class UserService implements CommunityConstent {
     LoginTicketMapper loginTicketMapper;
     @Autowired
     private HostHolder hostHolder;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
     public User findUserById(int id){
-        return userMapper.selectById(id);
+        User user = getCache(id);
+        if(user == null){
+            user = initCache(id);
+        }
+        return user;
+        // return userMapper.selectById(id);
     }
 
     public Map<String, Object> register(User user){
@@ -106,6 +111,7 @@ public class UserService implements CommunityConstent {
             return ACTIVATION_REPEAT;
         } else if (u.getActivationCode().equals(code)) {
             userMapper.updateStatus(userId, 1);
+            updateCache(userId);// 清理缓存
             return ACTIVATION_SUCCESS;
         }else{
             return ACTIVATION_FAILURE;
@@ -145,7 +151,10 @@ public class UserService implements CommunityConstent {
         loginTicket.setStatus(0);// 0为有效态
         loginTicket.setExpired(new Date(System.currentTimeMillis() + expiredSeconds * 1000));
         loginTicket.setUserId(user.getId());
-        loginTicketMapper.insertLoginTicket(loginTicket);
+        //loginTicketMapper.insertLoginTicket(loginTicket);
+        //将凭证存入redis
+        String ticketKey = RedisKeyUtil.getTicketKey(loginTicket.getTicket());
+        redisTemplate.opsForValue().set(ticketKey, loginTicket);// redis会将对象序列化为JSON字符串保存
 
         // 浏览器只需要保留ticket，这样下次访问时，浏览器将ticket传给服务端，服务端检查ticket是否存在，是否过期，若存在且未过期，则保持登录状态，否则重新登录
         // 所以要将ticket返回给客户端，由于此处返回map，所以将ticket放入map中即可
@@ -155,16 +164,26 @@ public class UserService implements CommunityConstent {
 
     // 退出
     public void logout(String ticket){
-        loginTicketMapper.updateStatus(ticket, 1);
+        //loginTicketMapper.updateStatus(ticket, 1);
+        // 使用redis
+        String ticketKey = RedisKeyUtil.getTicketKey(ticket);
+        LoginTicket loginTicket = (LoginTicket) redisTemplate.opsForValue().get(ticketKey);
+        loginTicket.setStatus(1);
+        redisTemplate.opsForValue().set(ticketKey, loginTicket);
     }
 
     // 查询凭证
     public LoginTicket findLoginTicket(String ticket){
-        return loginTicketMapper.selectByTicket(ticket);
+        //return loginTicketMapper.selectByTicket(ticket);
+        String ticketKey = RedisKeyUtil.getTicketKey(ticket);
+        return (LoginTicket) redisTemplate.opsForValue().get(ticketKey);
     }
     // 更新用户头像文件的路径
     public int updateHeader(int userId, String headerUrl){
-        return userMapper.updateHeader(userId, headerUrl);
+        // return userMapper.updateHeader(userId, headerUrl);
+        int rows = userMapper.updateHeader(userId, headerUrl);
+        updateCache(userId);// 清理缓存
+        return rows;
     }
 
     // 更新用户密码
@@ -216,10 +235,49 @@ public class UserService implements CommunityConstent {
         }
         newPassword = CommunityUtil.md5(newPassword + user.getSalt());
         userMapper.updatePassword(user.getId(), newPassword);
+        updateCache(user.getId());
         return map;
     }
 
     public User findUserByName(String username){
         return userMapper.selectByName(username);
+    }
+
+    // findUser时，优先从缓存中取值，若取到则返回，
+    private User getCache(int userId){
+        String userKey = RedisKeyUtil.getUserKey(userId);
+        return (User) redisTemplate.opsForValue().get(userKey);
+    }
+    // 取不到则访问数据库，并更新到缓存，
+    private User initCache(int userId){
+        String userKey = RedisKeyUtil.getUserKey(userId);
+        User user = userMapper.selectById(userId);
+        redisTemplate.opsForValue().set(userKey, user, 3600, TimeUnit.SECONDS);
+        return user;
+    }
+    // 当更新用户数据时，也需要更新缓存（删除缓存中的该用户）
+    private void updateCache(int userId){
+        String userKey = RedisKeyUtil.getUserKey(userId);
+        redisTemplate.delete(userKey);
+    }
+
+    // 某个用户的权限
+    public Collection<? extends GrantedAuthority> getAuthorities(int userId){
+        User user = this.findUserById(userId);
+        List<GrantedAuthority> list = new ArrayList<>();
+        list.add(new GrantedAuthority() {
+            @Override
+            public String getAuthority() {
+                switch (user.getType()){
+                    case 1:
+                        return AUTHORITY_ADMIN;
+                    case 2:
+                        return AUTHORITY_MODERATOR;
+                    default:
+                        return AUTHORITY_USER;
+                }
+            }
+        });
+        return list;
     }
 }

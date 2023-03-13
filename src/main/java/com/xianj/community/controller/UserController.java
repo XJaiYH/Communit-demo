@@ -8,7 +8,7 @@ import com.xianj.community.service.UserService;
 import com.xianj.community.util.CommunityConstent;
 import com.xianj.community.util.CommunityUtil;
 import com.xianj.community.util.HostHolder;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.mybatis.logging.Logger;
 import org.mybatis.logging.LoggerFactory;
